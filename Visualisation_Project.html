@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #f5f5f5;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .sidebar {
+            display: flex;
+            flex-wrap: wrap;
+            background: #333;
+            color: white;
+            padding: 10px;
+            justify-content: center;
+        }
+        .sidebar a {
+            display: block;
+            padding: 10px;
+            margin: 5px;
+            text-decoration: none;
+            color: white;
+            background: #444;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .sidebar a:hover {
+            background: #555;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+            background: #f1f1f1;
+        }
+        .controls input[type="file"], .controls select {
+            padding: 10px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .chart-container {
+            width: 100%;
+            height: 100%;
+            max-width: 800px;
+            max-height: 600px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #f9f9f9;
+            display: none;
+        }
+        .chart-container.active {
+            display: block;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        Data Visualization Dashboard
+    </header>
+    <div class="sidebar">
+        <a href="#" data-chart="lineChart">Line Chart</a>
+        <a href="#" data-chart="steppedLineChart">Stepped Line Chart</a>
+        <a href="#" data-chart="dottedLineChart">Dotted Line Chart</a>
+        <a href="#" data-chart="dashedLineChart">Dashed Line Chart</a>
+        <a href="#" data-chart="multiLineChart">Multi-Line Chart</a>
+        <a href="#" data-chart="barChart">Bar Chart</a>
+        <a href="#" data-chart="horizontalBarChart">Horizontal Bar Chart</a>
+        <a href="#" data-chart="pieChart">Pie Chart</a>
+        <a href="#" data-chart="doughnutChart">Doughnut Chart</a>
+        <a href="#" data-chart="radarChart">Radar Chart</a>
+        <a href="#" data-chart="polarAreaChart">Polar Area Chart</a>
+        <a href="#" data-chart="bubbleChart">Bubble Chart</a>
+        <a href="#" data-chart="scatterChart">Scatter Chart</a>
+    </div>
+    <div class="controls">
+        <input type="file" id="fileInput" accept=".csv">
+        <select id="countrySelect">
+            <option value="">Select Country</option>
+        </select>
+        <select id="seriesSelect">
+            <option value="">Select Series</option>
+        </select>
+    </div>
+    <div class="content">
+        <div class="chart-container" id="lineChartContainer">
+            <h2>Line Chart</h2>
+            <canvas id="lineChart"></canvas>
+        </div>
+        <div class="chart-container" id="steppedLineChartContainer">
+            <h2>Stepped Line Chart</h2>
+            <canvas id="steppedLineChart"></canvas>
+        </div>
+        <div class="chart-container" id="dottedLineChartContainer">
+            <h2>Dotted Line Chart</h2>
+            <canvas id="dottedLineChart"></canvas>
+        </div>
+        <div class="chart-container" id="dashedLineChartContainer">
+            <h2>Dashed Line Chart</h2>
+            <canvas id="dashedLineChart"></canvas>
+        </div>
+        <div class="chart-container" id="multiLineChartContainer">
+            <h2>Multi-Line Chart</h2>
+            <canvas id="multiLineChart"></canvas>
+        </div>
+        <div class="chart-container" id="barChartContainer">
+            <h2>Bar Chart</h2>
+            <canvas id="barChart"></canvas>
+        </div>
+        <div class="chart-container" id="horizontalBarChartContainer">
+            <h2>Horizontal Bar Chart</h2>
+            <canvas id="horizontalBarChart"></canvas>
+        </div>
+        <div class="chart-container" id="pieChartContainer">
+            <h2>Pie Chart</h2>
+            <canvas id="pieChart"></canvas>
+        </div>
+        <div class="chart-container" id="doughnutChartContainer">
+            <h2>Doughnut Chart</h2>
+            <canvas id="doughnutChart"></canvas>
+        </div>
+        <div class="chart-container" id="radarChartContainer">
+            <h2>Radar Chart</h2>
+            <canvas id="radarChart"></canvas>
+        </div>
+        <div class="chart-container" id="polarAreaChartContainer">
+            <h2>Polar Area Chart</h2>
+            <canvas id="polarAreaChart"></canvas>
+        </div>
+        <div class="chart-container" id="bubbleChartContainer">
+            <h2>Bubble Chart</h2>
+            <canvas id="bubbleChart"></canvas>
+        </div>
+        <div class="chart-container" id="scatterChartContainer">
+            <h2>Scatter Chart</h2>
+            <canvas id="scatterChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let csvData;
+        let parsedData;
+        let currentCountry = "";
+        let currentSeries = "";
+        let chartInstances = {};
+
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    csvData = e.target.result;
+                    parsedData = Papa.parse(csvData, {
+                        header: true,
+                        skipEmptyLines: true
+                    }).data;
+
+                    const countries = Array.from(new Set(parsedData.map(row => row['Country'])));
+                    const series = Array.from(new Set(parsedData.map(row => row['Series'])));
+
+                    const countrySelect = document.getElementById('countrySelect');
+                    const seriesSelect = document.getElementById('seriesSelect');
+
+                    countrySelect.innerHTML = '<option value="">Select Country</option>';
+                    seriesSelect.innerHTML = '<option value="">Select Series</option>';
+
+                    countries.forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country;
+                        option.textContent = country;
+                        countrySelect.appendChild(option);
+                    });
+
+                    series.forEach(serie => {
+                        const option = document.createElement('option');
+                        option.value = serie;
+                        option.textContent = serie;
+                        seriesSelect.appendChild(option);
+                    });
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        document.getElementById('countrySelect').addEventListener('change', function(event) {
+            currentCountry = event.target.value;
+            if (currentCountry && currentSeries) {
+                updateCharts();
+            }
+        });
+
+        document.getElementById('seriesSelect').addEventListener('change', function(event) {
+            currentSeries = event.target.value;
+            if (currentCountry && currentSeries) {
+                updateCharts();
+            }
+        });
+
+        function updateCharts() {
+            const filteredData = parsedData.filter(row => row['Country'] === currentCountry && row['Series'] === currentSeries);
+
+            const years = filteredData.map(row => row['Year']);
+            const values = filteredData.map(row => parseFloat(row['Value']) || 0);
+
+            renderCharts(years, values);
+        }
+
+        function renderCharts(labels, data) {
+            const datasets = [
+                {
+                    label: 'Dataset',
+                    data: data,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    fill: false,
+                    tension: 0.1
+                }
+            ];
+
+            const chartConfigs = {
+                lineChart: {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: getChartOptions('Year', 'Value')
+                },
+                steppedLineChart: {
+                    type: 'line',
+                    data: { labels, datasets: [{ ...datasets[0], stepped: true }] },
+                    options: getChartOptions('Year', 'Value')
+                },
+                dottedLineChart: {
+                    type: 'line',
+                    data: { labels, datasets: [{ ...datasets[0], borderDash: [5, 5] }] },
+                    options: getChartOptions('Year', 'Value')
+                },
+                dashedLineChart: {
+                    type: 'line',
+                    data: { labels, datasets: [{ ...datasets[0], borderDash: [10, 5] }] },
+                    options: getChartOptions('Year', 'Value')
+                },
+                multiLineChart: {
+                    type: 'line',
+                    data: { labels, datasets: [
+                        ...datasets,
+                        {
+                            label: 'Second Dataset',
+                            data: data.map(d => d * Math.random()),
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ] },
+                    options: getChartOptions('Year', 'Value')
+                },
+                barChart: {
+                    type: 'bar',
+                    data: { labels, datasets },
+                    options: getChartOptions('Year', 'Value')
+                },
+                horizontalBarChart: {
+                    type: 'bar',
+                    data: { labels, datasets },
+                    options: getHorizontalBarChartOptions('Year', 'Value')
+                },
+                pieChart: {
+                    type: 'pie',
+                    data: { labels, datasets: [{ ...datasets[0], backgroundColor: getRandomColors(labels.length) }] },
+                    options: getPieChartOptions()
+                },
+                doughnutChart: {
+                    type: 'doughnut',
+                    data: { labels, datasets: [{ ...datasets[0], backgroundColor: getRandomColors(labels.length) }] },
+                    options: getPieChartOptions()
+                },
+                radarChart: {
+                    type: 'radar',
+                    data: { labels, datasets },
+                    options: getPieChartOptions()
+                },
+                polarAreaChart: {
+                    type: 'polarArea',
+                    data: { labels, datasets: [{ ...datasets[0], backgroundColor: getRandomColors(labels.length) }] },
+                    options: getPieChartOptions()
+                },
+                bubbleChart: {
+                    type: 'bubble',
+                    data: {
+                        datasets: data.map((value, index) => ({
+                            label: labels[index],
+                            data: [{ x: index, y: value, r: Math.abs(value) * 5 }],
+                            backgroundColor: getRandomColor()
+                        }))
+                    },
+                    options: getScatterBubbleChartOptions('Year Index', 'Value')
+                },
+                scatterChart: {
+                    type: 'scatter',
+                    data: {
+                        datasets: data.map((value, index) => ({
+                            label: labels[index],
+                            data: [{ x: index, y: value }],
+                            backgroundColor: 'rgb(75, 192, 192)'
+                        }))
+                    },
+                    options: getScatterBubbleChartOptions('Year Index', 'Value')
+                }
+            };
+
+            for (let chartId in chartConfigs) {
+                const ctx = document.getElementById(chartId).getContext('2d');
+                if (chartInstances[chartId]) {
+                    chartInstances[chartId].destroy();
+                }
+                chartInstances[chartId] = new Chart(ctx, chartConfigs[chartId]);
+            }
+        }
+
+        function getChartOptions(xTitle, yTitle) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: xTitle
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: yTitle
+                        }
+                    }
+                }
+            };
+        }
+
+        function getHorizontalBarChartOptions(xTitle, yTitle) {
+            return {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: xTitle
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: yTitle
+                        }
+                    }
+                }
+            };
+        }
+
+        function getPieChartOptions() {
+            return {
+                responsive: true,
+                maintainAspectRatio: false
+            };
+        }
+
+        function getScatterBubbleChartOptions(xTitle, yTitle) {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: xTitle
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: yTitle
+                        }
+                    }
+                }
+            };
+        }
+
+        function getRandomColor() {
+            return `rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)})`;
+        }
+
+        function getRandomColors(count) {
+            return Array.from({ length: count }, () => getRandomColor());
+        }
+
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault();
+                document.querySelectorAll('.chart-container').forEach(container => {
+                    container.classList.remove('active');
+                });
+                const chartId = this.getAttribute('data-chart') + 'Container';
+                document.getElementById(chartId).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
